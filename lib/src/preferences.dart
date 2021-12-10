@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:preferences_utilities/src/_logger.dart';
+import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_shared_preferences.dart';
 
 part '_production_prefs.dart';
-
-///Throwed when the developer asks for [PreferencesUtilities] method before
-///intializing the [SharedPreferences] package instance.
-class PreferenceUtilsNotIntializedException implements Exception {}
 
 ///Throwes when you try to save unsupported DataType into [SharedPreferences]
 class NotSupportedTypeToSaveException implements Exception {}
@@ -15,17 +11,20 @@ class NotSupportedTypeToSaveException implements Exception {}
 ///Throwes when retrieved value type deosn't match the givin type.
 class TypeDoesNotMatch implements Exception {}
 
+Logger _logger = Logger(level: Level.nothing);
+
 ///Acts as a wraper for [SharedPreferences] to make saving and geting saved value
 ///as easy as possible in addition of adding more cool feature like removing
 ///muliple values at once.
 class PreferencesUtilities {
   PreferencesUtilities._();
+
   static BaseSharedPreferences? _preferences;
   static final PreferencesUtilities _instance = PreferencesUtilities._();
 
   //Retuns an instance of the class to interface with.
-  static PreferencesUtilities? get instance {
-    if (_preferences == null) return null;
+  static PreferencesUtilities get instance {
+    assert(_preferences != null, "Did you forget to call [PreferencesUtilities.init()]?");
     return _instance;
   }
 
@@ -38,19 +37,23 @@ class PreferencesUtilities {
     _preferences ??= preferences ?? await _ProductionSharedPreferences.getInstance();
   }
 
-  ///Retuns true if the class has been initialized with BaseSharedPreferences] impelementation.
   @visibleForTesting
-  bool get initilized => _preferences != null;
+  BaseSharedPreferences? get preferences => _preferences;
 
   ///Clear the given prefrences instance to test.
   ///
   @visibleForTesting
   static void clearInstance() => _preferences = null;
 
+  ///Change the logger level. defaults to `Level.nothing`
+  void setLoggerMode(Level level) {
+    _logger = Logger(level: level);
+  }
+
   /// `T` is the  `runTimeType` data which you are trying to save (`bool` - `String` - `double`)
   Future<bool> saveValueWithKey<T>(String key, T value) async {
-    logger.d("SharedPreferences: [Saving data] -> key: $key, value: $value");
-    _preferencesAssertion();
+    _logger.d("SharedPreferences: [Saving data] -> key: $key, value: $value");
+
     if (value is String) {
       return _preferences!.setString(key, value);
     } else if (value is bool) {
@@ -67,9 +70,8 @@ class PreferencesUtilities {
   ///
   ///if value does not exist returns `null`.
   E? getValueWithKey<E>(String key) {
-    _preferencesAssertion();
     final value = _preferences!.get(key);
-    logger.d("SharedPreferences: [Reading data] -> key: $key, value: $value");
+    _logger.d("SharedPreferences: [Reading data] -> key: $key, value: $value");
     if (value == null) return null;
     if (value is E) return value as E;
     throw TypeDoesNotMatch();
@@ -77,25 +79,23 @@ class PreferencesUtilities {
 
   ///Remove saved value with `Key` form local DB.
   Future<bool> removeValueWithKey(String key) async {
-    _preferencesAssertion();
     final value = _preferences?.get(key);
     if (value == null) return true;
-    logger.d("SharedPreferences: [Removing data] -> key: $key, value: $value");
+    _logger.d("SharedPreferences: [Removing data] -> key: $key, value: $value");
     return _preferences!.remove(key);
   }
 
   ///Remove saved values with `Keys` form local DB.
   Future<void> removeMultipleValuesWithKeys(List<String> keys) async {
-    _preferencesAssertion();
     dynamic value;
     for (final String key in keys) {
       value = _preferences!.get(key);
       if (value == null) {
-        logger.i("SharedPreferences: [Removing data] -> key: $key, value: {ERROR 'null' value}");
-        logger.i("Skipping...");
+        _logger.i("SharedPreferences: [Removing data] -> key: $key, value: {ERROR 'null' value}");
+        _logger.i("Skipping...");
       } else {
         await _preferences!.remove(key);
-        logger.d("SharedPreferences: [Removing data] -> key: $key, value: $value");
+        _logger.d("SharedPreferences: [Removing data] -> key: $key, value: $value");
       }
     }
     return;
@@ -103,20 +103,11 @@ class PreferencesUtilities {
 
   ///Clear all app saved preferences.
   Future<bool> clearAll() async {
-    _preferencesAssertion();
     return _preferences!.clear();
   }
 
   ///Retuns `true` if the local storage is empty.
-  @visibleForTesting
   bool isEmpty() {
-    _preferencesAssertion();
     return _preferences!.isEmpty();
-  }
-
-  void _preferencesAssertion() {
-    if (_preferences == null) {
-      throw PreferenceUtilsNotIntializedException();
-    }
   }
 }

@@ -1,6 +1,9 @@
 name: preferences_utilities
 description: A very simple Shared Preferences wrapper to offload all the complex to more simple APIs.
 version: 0.0.1
+author: Ahmed Mahmoud
+homepage: https://github.com/AhmedAbouelkher/preferences_utilities
+issue_tracker: https://github.com/AhmedAbouelkher/preferences_utilities/issues
 
 environment:
   sdk: ">=2.12.0 <3.0.0"
